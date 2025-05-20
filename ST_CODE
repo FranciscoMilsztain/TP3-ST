@@ -1,0 +1,292 @@
+//MILSZTAIN_MACIA_SABIN
+
+//LIBRERIAS
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <DHT.h>
+
+//ESTADOS
+int ESTADO = 1;
+#define PANTALLA1 1
+#define PANTALLA2 2
+#define FASE1 3
+#define FASE2 4
+#define FASE3 5
+#define FASE4 6
+#define FASE5 7
+#define FASE6 8
+#define SOLTAR_SUMAR 9
+#define SOLTAR_RESTAR 10
+
+//VARIABLES DE TIMERS
+unsigned long timer;
+unsigned long timer1000;
+int segs;
+int segs5;
+
+//LED
+int led = 25; //LED: Se prende al superar el umbral
+
+//BOTONES
+#define SW1 34 //switch de aumento de horas
+int val1;
+
+#define SW2 35 //switch de aumento de minutos
+int val2;
+
+//PANTALLA
+#define LONGITUD 128 // longitud
+#define ALTURA 64 // altura
+Adafruit_SSD1306 display(LONGITUD, ALTURA, &Wire, -1);
+
+//SENSOR DE TEMPERATURA
+#define DHTPIN 23
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+float umbral = 28; //limite de temperatura
+
+//TAREAS
+TaskHandle_t Task1;
+TaskHandle_t Task2;
+
+void setup() 
+{
+  Serial.begin(9600);
+  Serial.println("iniciado");
+
+  //Botones
+  pinMode(SW1, INPUT);
+  pinMode(SW2, INPUT);
+
+  dht.begin(); //inicializa en sensor de temperatura
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C); //inicializa el display
+
+  xTaskCreatePinnedToCore(
+    1DELAY_TELEGRAM, //Nombre de la funcion
+    "Task1",         //Nombre de la tarea
+    10000,           //Limite de espacio de la tarea
+    NULL,            //Parametro
+    1,               //Prioridad de la tarea
+    &Task1,          //A que tarea se refiere
+    0                //A que nucleo del ESP32 se asigna la tarea
+  );
+
+  xTaskCreatePinnedToCore(
+    2DELAY_ESTADOS, //Nombre de la funcion
+    "Task2",        //Nombre de la tarea
+    10000,          //Limite de espacio de la tarea
+    NULL,           //Parametro
+    1,              //Prioridad de la tarea
+    &Task2,         //A que tarea se refiere
+    1               //A que nucleo del ESP32 se asigna la tarea
+  );
+}
+
+void 1DELAY_TELEGRAM( void * pvParameters ) //LOOP DEL TELEGRAM
+{
+  for(;;)
+  {
+    //PARTE DE TELEGRAM
+    Serial.println("TELEGRAM");
+  }
+}
+
+void 2DELAY_ESTADOS( void * pvParameters ) //LOOP DE LA MAQUINA DE ESTADOS
+{
+  for(;;) 
+  {
+    //Se lee la temperatura (en celcious)
+    float temp = dht.readTemperature();
+
+    //Se leen los botones
+    val1 = digitalRead(SW1);
+    val2 = digitalRead(SW2);
+
+    //Se actualiza el reloj
+    timer = millis();
+
+    if (timer >= timer1000)
+    {
+      timer1000 = timer + 1000;
+      segs = segs + 1;
+    }
+
+    switch (ESTADO) //INICIO DE MÁQUINA DE ESTADOS
+    {
+      case PANTALLA1: //DISPLAY DE TEMPERATURA, UMBRAL
+      display.clearDisplay(); //Se reinicia el display
+      display.setTextSize(2); //Establece el tamaño de texto
+      display.setTextColor(WHITE);
+      
+      display.setCursor(0, 10);
+      display.println("TEMP:");
+      display.setCursor(0, 50);
+      display.println(temp); //display de temperatura
+
+      display.setCursor(40, 10);
+      display.println("UMB:");
+      display.setCursor(40, 50);
+      display.println(umbral); //display de umbral
+
+      display.display(); //Muestra el display
+
+      if (temp > umbral)
+      {
+        digitalWrite(led, HIGH);
+      }
+      if (temp < umbral)
+      {
+        digitalWrite(led, LOW);
+      }
+
+      //CAMBIO DE ESTADO
+      if (val1 == 0 && val2 == 1)
+      {
+        ESTADO = FASE1;
+        segs5 = segs + 5;
+      }
+  
+      if (segs >= segs5)
+      {
+        ESTADO = PANTALLA1;
+      }
+
+      break;
+
+      case FASE1:
+      if (val1 == 1 && val2 == 1)
+      {
+        ESTADO = FASE2;
+        segs5 = segs + 5;
+      }
+      
+      if (segs >= segs5)
+      {
+        ESTADO = PANTALLA1;
+      }
+
+      break;
+      
+      case FASE2:
+      if (val1 == 1 && val2 == 0)
+      {
+        ESTADO = FASE3;
+        segs5 = segs + 5;
+      }
+      
+      if (segs >= segs5)
+      {
+        ESTADO = PANTALLA1;
+      }
+
+      break;
+
+      case FASE3:
+      if (val1 == 1 && val2 == 1)
+      {
+        ESTADO = FASE4;
+        segs5 = segs + 5;
+      }
+      
+      if (segs >= segs5)
+      {
+        ESTADO = PANTALLA1;
+      }
+
+      break;
+
+      case FASE4:
+      if (val1 == 0 && val2 == 1)
+      {
+        ESTADO = FASE5;
+        segs5 = segs + 5;
+      }
+      
+      if (segs >= segs5)
+      {
+        ESTADO = PANTALLA1;
+      }
+
+      break;
+      
+      case FASE5:
+      if (val1 == 1 && val2 == 1)
+      {
+        ESTADO = PANTALLA2;
+      }
+      
+      if (segs >= segs5)
+      {
+        ESTADO = PANTALLA1;
+      }
+
+      break;
+      
+      case PANTALLA2:
+      display.clearDisplay(); //Se reinicia el display
+      display.setTextSize(2); //Establece el tamaño de texto
+      display.setTextColor(WHITE);
+      
+      display.setCursor(0, 10);
+      display.println("SETEAR UMBRAL"); //display de temperatura
+      display.setCursor(0, 40);
+      display.println(umbral); //display de umbral
+
+      display.display(); //Muestra el display
+
+      if (val1 == 0)
+      {
+        ESTADO = SOLTAR_SUMAR;
+      }
+
+      if (val2 == 0)
+      {
+        ESTADO = SOLTAR_RESTAR;
+      }
+
+      break;
+      
+      case SOLTAR_SUMAR:
+      if (val1 == 1)
+      {
+        umbral = umbral + 1;
+        ESTADO = PANTALLA2;
+      }
+
+      if (val2 == 0)
+      {
+        ESTADO = FASE6;
+      }
+
+      break;
+
+      case SOLTAR_RESTAR:
+      if (val2 == 1)
+      {
+        umbral = umbral - 1;
+        ESTADO = PANTALLA2;
+      }
+
+      if (val1 == 0)
+      {
+        ESTADO = FASE6;
+      }
+
+      break;
+
+      case FASE6:
+      if (val1 == 1 && val2 == 1)
+      {
+        ESTADO = PANTALLA1;
+      }
+
+      break;
+    }
+  }
+}
+
+void loop() 
+{
+
+}
