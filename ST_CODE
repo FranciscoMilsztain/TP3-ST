@@ -26,7 +26,7 @@ int segs;
 int segs5;
 
 //LED
-int led = 25; //LED: Se prende al superar el umbral
+#define LED 25 //LED: Se prende al superar el umbral
 
 //BOTONES
 #define SW1 34 //switch de aumento de horas
@@ -44,7 +44,7 @@ Adafruit_SSD1306 display(LONGITUD, ALTURA, &Wire, -1);
 #define DHTPIN 23
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
-float umbral = 28; //limite de temperatura
+float umbral = 24; //limite de temperatura
 
 //TAREAS
 TaskHandle_t Task1;
@@ -52,12 +52,14 @@ TaskHandle_t Task2;
 
 void setup() 
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println("iniciado");
 
   //Botones
   pinMode(SW1, INPUT);
   pinMode(SW2, INPUT);
+
+  pinMode(LED, OUTPUT);
 
   dht.begin(); //inicializa en sensor de temperatura
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); //inicializa el display
@@ -88,7 +90,6 @@ void Task1code( void * pvParameters ) //LOOP DEL TELEGRAM
   for(;;)
   {
     //PARTE DE TELEGRAM
-    Serial.println("TELEGRAM");
   }
 }
 
@@ -121,23 +122,23 @@ void Task2code( void * pvParameters ) //LOOP DE LA MAQUINA DE ESTADOS
       
       display.setCursor(0, 10);
       display.println("TEMP:");
-      display.setCursor(0, 50);
+      display.setCursor(60, 10);
       display.println(temp); //display de temperatura
 
-      display.setCursor(40, 10);
+      display.setCursor(0, 50);
       display.println("UMB:");
-      display.setCursor(40, 50);
+      display.setCursor(60, 50);
       display.println(umbral); //display de umbral
 
       display.display(); //Muestra el display
 
       if (temp > umbral)
       {
-        digitalWrite(led, HIGH);
+        digitalWrite(LED, HIGH);
       }
       if (temp < umbral)
       {
-        digitalWrite(led, LOW);
+        digitalWrite(LED, LOW);
       }
 
       //CAMBIO DE ESTADO
@@ -229,7 +230,7 @@ void Task2code( void * pvParameters ) //LOOP DE LA MAQUINA DE ESTADOS
       display.setTextColor(WHITE);
       
       display.setCursor(0, 10);
-      display.println("SETEAR UMBRAL"); //display de temperatura
+      display.println("SETEAR UMB"); //display de temperatura
       display.setCursor(0, 40);
       display.println(umbral); //display de umbral
 
@@ -250,8 +251,8 @@ void Task2code( void * pvParameters ) //LOOP DE LA MAQUINA DE ESTADOS
       case SOLTAR_SUMAR:
       if (val1 == 1)
       {
-        umbral = umbral + 1;
         ESTADO = PANTALLA2;
+        umbral = umbral + 1;
       }
 
       if (val2 == 0)
@@ -264,8 +265,8 @@ void Task2code( void * pvParameters ) //LOOP DE LA MAQUINA DE ESTADOS
       case SOLTAR_RESTAR:
       if (val2 == 1)
       {
-        umbral = umbral - 1;
         ESTADO = PANTALLA2;
+        umbral = umbral - 1;
       }
 
       if (val1 == 0)
