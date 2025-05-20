@@ -63,7 +63,7 @@ void setup()
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); //inicializa el display
 
   xTaskCreatePinnedToCore(
-    1DELAY_TELEGRAM, //Nombre de la funcion
+    Task1code, //Nombre de la funcion
     "Task1",         //Nombre de la tarea
     10000,           //Limite de espacio de la tarea
     NULL,            //Parametro
@@ -73,7 +73,7 @@ void setup()
   );
 
   xTaskCreatePinnedToCore(
-    2DELAY_ESTADOS, //Nombre de la funcion
+    Task2code, //Nombre de la funcion
     "Task2",        //Nombre de la tarea
     10000,          //Limite de espacio de la tarea
     NULL,           //Parametro
@@ -83,7 +83,7 @@ void setup()
   );
 }
 
-void 1DELAY_TELEGRAM( void * pvParameters ) //LOOP DEL TELEGRAM
+void Task1code( void * pvParameters ) //LOOP DEL TELEGRAM
 {
   for(;;)
   {
@@ -92,7 +92,7 @@ void 1DELAY_TELEGRAM( void * pvParameters ) //LOOP DEL TELEGRAM
   }
 }
 
-void 2DELAY_ESTADOS( void * pvParameters ) //LOOP DE LA MAQUINA DE ESTADOS
+void Task2code( void * pvParameters ) //LOOP DE LA MAQUINA DE ESTADOS
 {
   for(;;) 
   {
