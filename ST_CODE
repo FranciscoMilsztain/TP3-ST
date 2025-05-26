@@ -1,10 +1,17 @@
 //MILSZTAIN_MACIA_SABIN
+//Link al grupo con el bot: https://web.telegram.org/k/#-4625053885
 
 //LIBRERIAS
+  //General
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <DHT.h>
+  //Telegram
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <UniversalTelegramBot.h>
+#include <ArduinoJson.h>
 
 //ESTADOS
 int ESTADO = 1;
@@ -31,7 +38,6 @@ int segs5;
 //BOTONES
 #define SW1 34 //switch de aumento de horas
 int val1;
-
 #define SW2 35 //switch de aumento de minutos
 int val2;
 
@@ -44,28 +50,57 @@ Adafruit_SSD1306 display(LONGITUD, ALTURA, &Wire, -1);
 #define DHTPIN 23
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
+float temp;
 float umbral = 24; //limite de temperatura
 
-//TAREAS
+//TAREAS (LOOPS 1 Y 2)
 TaskHandle_t Task1;
 TaskHandle_t Task2;
+
+//Variable de confirmación de checkeo de mensaje del BOT
+int checkeo;
+
+//WIFI
+const char* ssid = "ORT-IoT";
+const char* password = "NuevaIOT$25";
+
+//Token del bot
+#define BOTtoken "7522588868:AAEa9GZcXQDTB5ZFOUk-1ykoQcXHuLbhJjk"
+//ID del chat con el bot
+#define CHAT_ID -4625053885
+
+WiFiClientSecure client;
+UniversalTelegramBot bot(BOTtoken, client);
+
 
 void setup() 
 {
   Serial.begin(115200);
-  Serial.println("iniciado");
+  Serial.println("Programa iniciado");
+  
+  //Conexión al wifi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) 
+  {
+    delay(500);
+    Serial.print("-"); //Se manda indefinidamente si no se logra establecer la conexión al wifi
+  }
+  Serial.println("WiFi conectado"); //Se manda al verificar que se logró establecer la conexión al wifi
+
+  //El BOT manda un mensaje a telegram para anunciar que se inició
+  bot.sendMessage(CHAT_ID, "BOT iniciado", ""); 
 
   //Botones
   pinMode(SW1, INPUT);
   pinMode(SW2, INPUT);
-
+  //LED
   pinMode(LED, OUTPUT);
 
   dht.begin(); //inicializa en sensor de temperatura
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); //inicializa el display
 
   xTaskCreatePinnedToCore(
-    Task1code, //Nombre de la funcion
+    Task1code,       //Nombre de la funcion
     "Task1",         //Nombre de la tarea
     10000,           //Limite de espacio de la tarea
     NULL,            //Parametro
@@ -75,7 +110,7 @@ void setup()
   );
 
   xTaskCreatePinnedToCore(
-    Task2code, //Nombre de la funcion
+    Task2code,      //Nombre de la funcion
     "Task2",        //Nombre de la tarea
     10000,          //Limite de espacio de la tarea
     NULL,           //Parametro
@@ -85,26 +120,57 @@ void setup()
   );
 }
 
-void Task1code( void * pvParameters ) //LOOP DEL TELEGRAM
+
+void Task1code( void * pvParameters ) //PRIMER LOOP || LOOP DE TELEGRAM
 {
   for(;;)
   {
-    Serial.println("TELEGRAM");
-    //PARTE DE TELEGRAM
+    //Se actualiza el reloj
+    timer = millis();
+
+    //Se lee la temperatura (en celcious)
+    temp = dht.readTemperature();
+
+    //Si temp supera al umbral, y el bot aún no lo anunció (checkeo == 0)
+    if (temp > umbral && checkeo == 0) 
+    { 
+      //El bot manda un mensaje indicando que se supero el umbral, y se manda también la temperatura actual
+      bot.sendMessage(CHAT_ID, "Se superó el umbral, TEMP ACTUAL: " + String(temp), ""); 
+      //Se cambia checkeo a 1, para que el BOT solo mande 1 vez el mensaje
+      checkeo = 1;
+    }
+
+    //Cuando temp es más baja que umbral, se hace checkeo = 0, para que cuando temp vuelva a superar a umbral, el BOT vuelva a anunciarlo
+    if(temp < umbral)
+    {
+      checkeo = 0;
+    }
+    
+    if (timer >= timer1000) //Esto ocurre una vez cada segundo
+    { 
+      int no_leidos = bot.getUpdates(bot.last_message_received + 1); //Se revisa si hay algún mensaje nuevo / no procesado
+      
+      if (no_leidos > 0) //Si hay algun mensaje no procesado
+      {
+        String recibido = bot.messages[0].text; //El nuevo mensaje se iguala recibido
+
+        if (recibido == "TEMP")
+        {
+          bot.sendMessage(CHAT_ID, "TEMP ACTUAL: " + String(temp), ""); //Si se recibe "TEMP" el bot envía temp
+        }
+      }
+
+      timer1000 = timer + 1000;
+    }
+
   }
 }
 
-void Task2code( void * pvParameters ) //LOOP DE LA MAQUINA DE ESTADOS
+
+void Task2code( void * pvParameters ) //SEGUNDO LOOP || LOOP DE LA MAQUINA DE ESTADOS
 {
   for(;;) 
   {
-    //Se lee la temperatura (en celcious)
-    float temp = dht.readTemperature();
-
-    //Se leen los botones
-    val1 = digitalRead(SW1);
-    val2 = digitalRead(SW2);
-
     //Se actualiza el reloj
     timer = millis();
 
@@ -113,6 +179,13 @@ void Task2code( void * pvParameters ) //LOOP DE LA MAQUINA DE ESTADOS
       timer1000 = timer + 1000;
       segs = segs + 1;
     }
+
+    //Se lee la temperatura (en celcious)
+    temp = dht.readTemperature();
+
+    //Se leen los botones
+    val1 = digitalRead(SW1);
+    val2 = digitalRead(SW2);
 
     switch (ESTADO) //INICIO DE MÁQUINA DE ESTADOS
     {
@@ -285,8 +358,10 @@ void Task2code( void * pvParameters ) //LOOP DE LA MAQUINA DE ESTADOS
 
       break;
     }
+
   }
 }
+
 
 void loop() 
 {
