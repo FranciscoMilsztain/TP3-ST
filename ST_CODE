@@ -1,5 +1,9 @@
 //MILSZTAIN_MACIA_SABIN
-//Link al grupo con el bot: https://web.telegram.org/k/#-4625053885
+//Link al grupo con el bot: https://web.telegram.org/k/#@tp3realstbot
+
+//BORRAR TODO ESTO
+//Link al tutorial de recibir mensajes: https://randomnerdtutorials.com/telegram-esp32-cam-photo-arduino/
+//Link a chat: https://chatgpt.com/c/683606e3-7888-8000-a591-d61270383dec
 
 //LIBRERIAS
   //General
@@ -61,13 +65,13 @@ TaskHandle_t Task2;
 int checkeo;
 
 //WIFI
-const char* ssid = "ORT-IoT";
-const char* password = "NuevaIOT$25";
+const char* ssid = "MECA-IoT";     //Nombre de red
+const char* password = "IoT$2025"; //Contraseña de red
 
 //Token del bot
-#define BOTtoken "7522588868:AAEa9GZcXQDTB5ZFOUk-1ykoQcXHuLbhJjk"
+#define BOTtoken "7598940338:AAHUYWo-wBsA2HGPGqoEQsSnPTgR7i8YGJA"
 //ID del chat con el bot
-#define CHAT_ID -4625053885
+#define CHAT_ID "7601536385"
 
 WiFiClientSecure client;
 UniversalTelegramBot bot(BOTtoken, client);
@@ -79,7 +83,9 @@ void setup()
   Serial.println("Programa iniciado");
   
   //Conexión al wifi
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
+  client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
   while (WiFi.status() != WL_CONNECTED) 
   {
     delay(500);
@@ -123,6 +129,7 @@ void setup()
 
 void Task1code( void * pvParameters ) //PRIMER LOOP || LOOP DE TELEGRAM
 {
+  Serial.println("Task1");
   for(;;)
   {
     //Se actualiza el reloj
@@ -134,10 +141,10 @@ void Task1code( void * pvParameters ) //PRIMER LOOP || LOOP DE TELEGRAM
     //Si temp supera al umbral, y el bot aún no lo anunció (checkeo == 0)
     if (temp > umbral && checkeo == 0) 
     { 
-      //El bot manda un mensaje indicando que se supero el umbral, y se manda también la temperatura actual
-      bot.sendMessage(CHAT_ID, "Se superó el umbral, TEMP ACTUAL: " + String(temp), ""); 
       //Se cambia checkeo a 1, para que el BOT solo mande 1 vez el mensaje
       checkeo = 1;
+      //El bot manda un mensaje indicando que se supero el umbral, y se manda también la temperatura actual
+      bot.sendMessage(CHAT_ID, "Se superó el umbral, TEMP ACTUAL: " + String(temp), ""); 
     }
 
     //Cuando temp es más baja que umbral, se hace checkeo = 0, para que cuando temp vuelva a superar a umbral, el BOT vuelva a anunciarlo
@@ -152,7 +159,7 @@ void Task1code( void * pvParameters ) //PRIMER LOOP || LOOP DE TELEGRAM
       
       if (no_leidos > 0) //Si hay algun mensaje no procesado
       {
-        String recibido = bot.messages[0].text; //El nuevo mensaje se iguala recibido
+        String recibido = bot.messages[0].text; //El nuevo mensaje se iguala a recibido
 
         if (recibido == "TEMP")
         {
@@ -169,6 +176,7 @@ void Task1code( void * pvParameters ) //PRIMER LOOP || LOOP DE TELEGRAM
 
 void Task2code( void * pvParameters ) //SEGUNDO LOOP || LOOP DE LA MAQUINA DE ESTADOS
 {
+  Serial.println("Task2");
   for(;;) 
   {
     //Se actualiza el reloj
