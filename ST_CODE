@@ -1,10 +1,6 @@
 //MILSZTAIN_MACIA_SABIN
 //Link al grupo con el bot: https://web.telegram.org/k/#@tp3realstbot
 
-//BORRAR TODO ESTO
-//Link al tutorial de recibir mensajes: https://randomnerdtutorials.com/telegram-esp32-cam-photo-arduino/
-//Link a chat: https://chatgpt.com/c/683606e3-7888-8000-a591-d61270383dec
-
 //LIBRERIAS
   //General
 #include <Wire.h>
@@ -44,6 +40,17 @@ int segs5;
 int val1;
 #define SW2 35 //switch de aumento de minutos
 int val2;
+
+//ANTIREBOTE 
+unsigned long lastDebounceTime1 = 0;
+unsigned long lastDebounceTime2 = 0;
+const unsigned long debounceDelay = 50; // 50 ms para antirrebote
+
+int lastButtonState1 = HIGH;
+int lastButtonState2 = HIGH;
+
+int buttonState1 = HIGH;
+int buttonState2 = HIGH;
 
 //PANTALLA
 #define LONGITUD 128 // longitud
@@ -147,14 +154,12 @@ void Task1code( void * pvParameters ) //PRIMER LOOP || LOOP DE TELEGRAM
       bot.sendMessage(CHAT_ID, "Se superó el umbral, TEMP ACTUAL: " + String(temp), ""); 
     }
 
-    //Cuando temp es más baja que umbral, se hace checkeo = 0, para que cuando temp vuelva a superar a umbral, el BOT vuelva a anunciarlo
-    if(temp < umbral)
-    {
-      checkeo = 0;
-    }
+    
     
     if (timer >= timer1000) //Esto ocurre una vez cada segundo
     { 
+      timer1000 = timer + 100;
+
       int no_leidos = bot.getUpdates(bot.last_message_received + 1); //Se revisa si hay algún mensaje nuevo / no procesado
       
       if (no_leidos > 0) //Si hay algun mensaje no procesado
@@ -166,8 +171,12 @@ void Task1code( void * pvParameters ) //PRIMER LOOP || LOOP DE TELEGRAM
           bot.sendMessage(CHAT_ID, "TEMP ACTUAL: " + String(temp), ""); //Si se recibe "TEMP" el bot envía temp
         }
       }
+    }
 
-      timer1000 = timer + 1000;
+    //Cuando temp es más baja que umbral, se hace checkeo = 0, para que cuando temp vuelva a superar a umbral, el BOT vuelva a anunciarlo
+    if(temp < umbral)
+    {
+      checkeo = 0;
     }
 
   }
@@ -192,8 +201,33 @@ void Task2code( void * pvParameters ) //SEGUNDO LOOP || LOOP DE LA MAQUINA DE ES
     temp = dht.readTemperature();
 
     //Se leen los botones
-    val1 = digitalRead(SW1);
-    val2 = digitalRead(SW2);
+    int reading1 = digitalRead(SW1);
+    int reading2 = digitalRead(SW2);
+
+    // BOTÓN 1
+    if (reading1 != lastButtonState1) {
+      lastDebounceTime1 = millis();
+    }
+    if ((millis() - lastDebounceTime1) > debounceDelay) {
+      if (reading1 != buttonState1) {
+        buttonState1 = reading1;
+      }
+    }
+    lastButtonState1 = reading1;
+    val1 = buttonState1; // usar val1 como antes
+
+    // BOTÓN 2
+    if (reading2 != lastButtonState2) {
+      lastDebounceTime2 = millis();
+    }
+    if ((millis() - lastDebounceTime2) > debounceDelay) {
+      if (reading2 != buttonState2) {
+        buttonState2 = reading2;
+      }
+    }
+    lastButtonState2 = reading2;
+    val2 = buttonState2; // usar val2 como antes
+
 
     switch (ESTADO) //INICIO DE MÁQUINA DE ESTADOS
     {
