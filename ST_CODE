@@ -49,8 +49,9 @@ void setup()
   pinMode(SW1, INPUT);
   pinMode(SW2, INPUT);
 
-  //Display
   dht.begin(); //inicializa en sensor de temperatura
+
+  //Display
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); //inicializa el display
 }
 
@@ -64,7 +65,7 @@ void loop()
 
   //Se leen los botones
   val1 = digitalRead(SW1);
-  val2 reading2 = digitalRead(SW2);
+  val2 = digitalRead(SW2);
 
   switch (ESTADO) //INICIO DE MÁQUINA DE ESTADOS
   {
